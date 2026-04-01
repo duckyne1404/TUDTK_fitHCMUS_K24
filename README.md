@@ -12,7 +12,7 @@
 ---
 
 ## 📂 Cấu trúc mã nguồn
-[cite_start]Dựa trên yêu cầu của đồ án, các tệp tin được tổ chức như sau[cite: 334, 343]:
+Dựa trên yêu cầu của đồ án, các tệp tin được tổ chức như sau:
 
 1.  **`main.py`**: Điểm khởi đầu của chương trình, hiển thị thông tin sinh viên và điều phối các kịch bản kiểm thử.
 2.  **`main_function.py`**: Chứa các thuật toán lõi được cài đặt từ đầu (from scratch):
@@ -38,9 +38,8 @@
 ## 🛠️ Hướng dẫn khởi chạy
 
 ### 1. Yêu cầu hệ thống
-* [cite_start]Python 3.10 hoặc cao hơn[cite: 92].
-* [cite_start]Các thư viện hỗ trợ (chỉ dùng để kiểm chứng kết quả hoặc vẽ đồ thị): `numpy`, `matplotlib`[cite: 93, 96].
-
+* Python 3.10 hoặc cao hơn.
+* Các thư viện hỗ trợ (chỉ dùng để kiểm chứng kết quả hoặc vẽ đồ thị): `numpy`, `matplotlib`.
 ### 2. Cài đặt môi trường
 Tạo file `requirements.txt` và cài đặt:
 ```bash
