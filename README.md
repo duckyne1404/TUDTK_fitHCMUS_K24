@@ -45,8 +45,3 @@
 Tạo file `requirements.txt` và cài đặt:
 ```bash
 pip install numpy matplotlib
-
-### 3. Thực thi chương trình
-Tạo file `requirements.txt` và cài đặt:
-```bash
-pip install numpy matplotlib
