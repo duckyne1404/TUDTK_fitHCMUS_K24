@@ -1,0 +1,18 @@
+# 1. Chặn tất cả mọi thứ trong thư mục
+*
+
+# 2. Các ngoại lệ (whitelist) - Những file này SẼ ĐƯỢC upload
+!main.py
+!main_function.py
+!matrix_utils.py
+!test.py
+!README.md
+
+# 3. Giữ lại chính file .gitignore này
+!.gitignore
+
+# 4. Đảm bảo bỏ qua các thư mục hệ thống/rác (dù đã chặn ở bước 1)
+__pycache__/
+.vscode/
+.idea/
+*.pyc
