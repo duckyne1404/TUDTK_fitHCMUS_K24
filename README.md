@@ -1,13 +1,13 @@
 # ĐỒ ÁN 1: MA TRẬN VÀ CƠ SỞ CỦA TÍNH TOÁN KHOA HỌC
-[cite_start]**Môn học:** Toán Ứng Dụng và Thống Kê (MTH00051)
-[cite_start]**Học kỳ:** II - Năm học 2025-2026
+**Môn học:** Toán Ứng Dụng và Thống Kê (MTH00051)
+**Học kỳ:** II - Năm học 2025-2026
 
 ---
 
 ## 👤 Thông tin sinh viên
 * **Họ và tên:** Phí Hoàng Đức
 * **MSSV:** 24120248
-* [cite_start]**Đơn vị:** Khoa Công nghệ Thông tin - HCMUS
+* **Đơn vị:** Khoa Công nghệ Thông tin - HCMUS
 
 ---
 
@@ -26,12 +26,12 @@
 ---
 
 ## 🚀 Chức năng chính (Phần 2: Phân rã ma trận)
-[cite_start]Đồ án này tập trung cài đặt và thực nghiệm các phương pháp phân rã ma trận mà không sử dụng thư viện hỗ trợ tính toán sẵn (`numpy.linalg`)[cite: 99, 181]:
+Đồ án này tập trung cài đặt và thực nghiệm các phương pháp phân rã ma trận mà không sử dụng thư viện hỗ trợ tính toán sẵn (`numpy.linalg`):
 
-* [cite_start]**Chéo hóa ma trận ($A = PDP^{-1}$)**: Áp dụng cho ma trận vuông đối xứng, tìm ma trận đường chéo $D$ và ma trận vector riêng $P$[cite: 183, 184].
-* [cite_start]**Phân rã SVD ($A = U\Sigma V^T$)**: Sử dụng ma trận hiệp phương sai $A^T A$ để tìm các giá trị suy biến và các vector trực giao[cite: 218, 222].
-* [cite_start]**Tính toán ổn định**: Sử dụng kỹ thuật **Partial Pivoting** để giảm thiểu sai số làm tròn trong quá trình khử Gauss-Jordan[cite: 129, 131].
-* [cite_start]**Hiệu năng**: Tích hợp bộ đo thời gian xử lý cho ma trận kích thước lớn (Benchmark) để phân tích chi phí tính toán $O(n^3)$[cite: 259, 288].
+* **Chéo hóa ma trận ($A = PDP^{-1}$)**: Áp dụng cho ma trận vuông đối xứng, tìm ma trận đường chéo $D$ và ma trận vector riêng $P$.
+* **Phân rã SVD ($A = U\Sigma V^T$)**: Sử dụng ma trận hiệp phương sai $A^T A$ để tìm các giá trị suy biến và các vector trực giao.
+* **Tính toán ổn định**: Sử dụng kỹ thuật **Partial Pivoting** để giảm thiểu sai số làm tròn trong quá trình khử Gauss-Jordan.
+* **Hiệu năng**: Tích hợp bộ đo thời gian xử lý cho ma trận kích thước lớn (Benchmark) để phân tích chi phí tính toán $O(n^3)$.
 
 ---
 
@@ -45,3 +45,9 @@
 Tạo file `requirements.txt` và cài đặt:
 ```bash
 pip install numpy matplotlib
+```
+
+### 3. Thực thi chương trình
+```bash
+python main.py
+```
