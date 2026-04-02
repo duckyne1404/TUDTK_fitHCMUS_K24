@@ -161,9 +161,10 @@ $$
 
 1. Phân rã $A_k = Q_k R_k$.
 2. Ghép lại $A_{k+1} = R_k Q_k$.
-3. Lặp cho đến khi các phần tử đường chéo ổn định.
+3. Lặp cho đến khi phần tử đường chéo dùng theo dõi hội tụ ổn định.
 
 Về mặt toán học, $A_{k+1}$ đồng dạng với $A_k$, nên trị riêng được bảo toàn.
+Trong implementation hiện tại, điều kiện dừng dùng độ thay đổi của phần tử đường chéo cuối (hoặc phần tử theo `shindex` với bản shift).
 
 ### 4.6 QR iteration có shift
 
@@ -203,13 +204,17 @@ def gram_schmidt(A):
 
 ```python
 def eig_qr(A):
-    current = [row[:] for row in A]
+    current = makesimilar(A)
     iterations = 0
+    last = current[-1][-1]
+    diff = 1.0
+    max_iters = 2000
 
-    while not converged(current):
-        Q, R = qr_decomposition(current)
-        current = matrix_multiply(R, Q)
+    while diff > 1e-10 and iterations < max_iters:
+        current = makesimilar(current)
         iterations += 1
+        diff = abs(current[-1][-1] - last)
+        last = current[-1][-1]
 
     return [current[i][i] for i in range(len(current))], iterations
 ```
@@ -290,8 +295,11 @@ def diagonalize(A, use_shift=False):
 def eigenvector_from_lambda(A, lam):
     try:
         return _inverse_iteration(A, lam)
-    except Exception:
-        return _back_substitute_null_vector(*solve_rref(A_minus_lambda_I))
+    except ValueError:
+        n = len(A)
+        shifted = matrix_subtract(A, scalar_multiply_matrix(identity_matrix(n), lam))
+        echelon, pivot_cols = solve_rref([row[:] for row in shifted])
+        return _back_substitute_null_vector(echelon, pivot_cols)
 ```
 
 ### 5.6 Hàm tương ứng trong code
@@ -429,3 +437,116 @@ Lưu ý: NumPy được dùng để **đối chiếu và kiểm thử**, không 
 - Shifted QR có thể gặp thất bại với một số đầu vào xấu điều kiện do vector trung gian gần 0.
 - Sai số tái tạo của SVD tăng khi kích thước ma trận lớn hơn, do tích lũy sai số từ các bước trực chuẩn hóa và phân rã lặp.
 - Đây là giới hạn tự nhiên của phiên bản cài đặt thuần Python hiện tại, không phải lỗi của notebook kiểm thử.
+
+---
+
+## 10. Phân tích độ phức tạp chi tiết
+
+Ký hiệu:
+
+- $n$: kích thước ma trận vuông trong QR/chéo hóa.
+- $A \in \mathbb{R}^{m \times n}$ trong SVD.
+- $k$: số vòng lặp QR cho đến hội tụ.
+- $s$: số bước inverse iteration (mặc định nhỏ, hiện dùng 8 bước).
+
+### 10.1 Các phép toán nền (utils.py)
+
+- `transpose(A)` với $A \in \mathbb{R}^{m \times n}$: $O(mn)$.
+- `matrix_add`, `matrix_subtract` với ma trận $m \times n$: $O(mn)$.
+- `matrix_multiply(A, B)` với $A \in \mathbb{R}^{m \times p}$, $B \in \mathbb{R}^{p \times n}$: $O(mpn)$.
+- `identity_matrix(n)`: $O(n^2)$.
+- `normalize(v)` với $v \in \mathbb{R}^{n}$: $O(n)$.
+
+### 10.2 QR decomposition và QR eigen
+
+1. `gram_schmidt(A)` với $A \in \mathbb{R}^{n \times n}$:
+    - Vòng ngoài theo cột: $n$ lần.
+    - Mỗi cột trừ chiếu lên tối đa $n$ vector trước đó, mỗi phép chiếu/trừ có chi phí $O(n)$.
+    - Tổng: $O(n^3)$.
+
+2. `qr_decomposition(A)`:
+    - Gọi `gram_schmidt`: $O(n^3)$.
+    - Tính ma trận $R$ bằng tích vô hướng cho miền tam giác trên: vẫn bậc $O(n^3)$.
+    - Tổng: $O(n^3)$.
+
+3. `makesimilar(A)`:
+    - `qr_decomposition(A)`: $O(n^3)$.
+    - Nhân ma trận $R Q$: $O(n^3)$.
+    - Tổng: $O(n^3)$.
+
+4. `eig_qr(A)`:
+    - Mỗi vòng lặp dùng `makesimilar`: $O(n^3)$.
+    - Tổng: $O(k n^3)$.
+
+5. `eig_qrshift(A)`:
+    - Mỗi vòng lặp gồm: tạo $I$, nhân vô hướng, cộng/trừ ma trận (tối đa $O(n^2)$) và một lần `makesimilar` ($O(n^3)$).
+    - Thành phần chi phối vẫn là `makesimilar`.
+    - Tổng: $O(k n^3)$, nhưng hằng số có thể khác và thường hội tụ với $k$ nhỏ hơn trên nhiều ma trận.
+
+### 10.3 Chéo hóa (diagonalization.py)
+
+1. Tìm trị riêng bằng QR:
+    - Không shift: $O(k n^3)$.
+    - Có shift: $O(k n^3)$.
+
+2. Tìm từng vector riêng với inverse iteration:
+    - Mỗi bước inverse iteration giải hệ tuyến tính cỡ $n$ bằng khử Gauss: $O(n^3)$.
+    - Mỗi trị riêng: $O(s n^3)$.
+    - $n$ trị riêng: $O(s n^4)$.
+
+3. Fallback RREF + back-substitute (nếu cần):
+    - Một lần RREF ma trận $n \times n$: $O(n^3)$.
+    - Back-substitute: $O(n^2)$.
+
+4. Tổng thể `diagonalize(A, use_shift=...)`:
+    - Thực tế: $O(k n^3 + s n^4)$.
+    - Với $s$ là hằng số nhỏ, có thể xem xấp xỉ: $O(k n^3 + n^4)$.
+
+### 10.4 SVD (SVD.py)
+
+Với $A \in \mathbb{R}^{m \times n}$:
+
+1. Tạo $W = A^T A$:
+    - `transpose(A)`: $O(mn)$.
+    - Nhân ma trận $(n \times m)(m \times n)$: $O(m n^2)$.
+
+2. Diagonalize $W$ (kích thước $n \times n$):
+    - $O(k n^3 + s n^4)$.
+
+3. Dựng các vector trái $u_i = Av_i / \sigma_i$:
+    - Mỗi phép nhân ma trận-vectơ: $O(mn)$.
+    - Tối đa $n$ vector: $O(m n^2)$.
+
+4. Hoàn thiện cơ sở trực chuẩn:
+    - Hoàn thiện $U$ trong không gian $\mathbb{R}^m$: xấp xỉ $O(m^3)$.
+    - Hoàn thiện $V$ trong không gian $\mathbb{R}^n$: xấp xỉ $O(n^3)$.
+
+5. Tổng thể:
+
+$$
+O(m n^2) + O(k n^3 + s n^4) + O(m^3 + n^3)
+$$
+
+Trong nhiều bài toán thực nghiệm của notebook (ma trận gần vuông), phần diagonalize của $W$ là thành phần chi phối.
+
+---
+
+## 11. Bảng so sánh độ phức tạp các thuật toán/kỹ thuật
+
+| Thuật toán/Kỹ thuật | Đầu vào | Độ phức tạp thời gian (xấp xỉ) | Ghi chú |
+|---|---|---|---|
+| Gram-Schmidt cổ điển | $n \times n$ | $O(n^3)$ | Nhạy cảm số học hơn Householder |
+| QR decomposition (`qr_decomposition`) | $n \times n$ | $O(n^3)$ | Gồm Gram-Schmidt + dựng $R$ |
+| Một bước đồng dạng QR (`makesimilar`) | $n \times n$ | $O(n^3)$ | Chi phối bởi QR và nhân ma trận |
+| QR eigen không shift (`eig_qr`) | $n \times n$ | $O(k n^3)$ | $k$: số vòng lặp hội tụ |
+| QR eigen có shift (`eig_qrshift`) | $n \times n$ | $O(k n^3)$ | Thường giảm $k$ trên ma trận thuận lợi |
+| RREF (`solve_rref`) | $n \times n$ | $O(n^3)$ | Dùng khi fallback vector riêng |
+| Inverse iteration cho 1 trị riêng | $n \times n$ | $O(s n^3)$ | $s$: số bước lặp inverse iteration |
+| Chéo hóa (`diagonalize`) | $n \times n$ | $O(k n^3 + s n^4)$ | Gồm QR eigen + tìm $n$ vector riêng |
+| Tạo $W = A^T A$ | $m \times n$ | $O(m n^2)$ | Bước đầu của SVD |
+| SVD đầy đủ (`svd_decomposition`) | $m \times n$ | $O(m n^2 + k n^3 + s n^4 + m^3 + n^3)$ | Phần diagonalize của $W$ thường chi phối |
+
+Kết luận nhanh:
+
+- Với bản cài đặt hiện tại, nút thắt chính là các bước lặp QR và phần tìm vector riêng trong diagonalization.
+- Kỹ thuật shift chủ yếu giúp giảm số vòng lặp hội tụ, còn bậc độ phức tạp lý thuyết vẫn giữ nguyên.
