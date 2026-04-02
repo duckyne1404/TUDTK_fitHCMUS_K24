@@ -40,6 +40,34 @@ def transpose(A):
             AT[j][i] = A[i][j]
     return AT
 
+# return C = A + B
+def matrix_add(A, B):
+    m, n = _validate_non_empty_rectangular_matrix(A, "A")
+    b_rows, b_cols = _validate_non_empty_rectangular_matrix(B, "B")
+    
+    if m != b_rows or n != b_cols:
+        raise ValueError("Matrices A and B must have the same dimensions for addition")
+    
+    C = [[0 for _ in range(n)] for _ in range(m)]
+    for i in range(m):
+        for j in range(n):
+            C[i][j] = A[i][j] + B[i][j]
+    return C
+
+# return C = A - B
+def matrix_subtract(A, B):
+    m, n = _validate_non_empty_rectangular_matrix(A, "A")
+    b_rows, b_cols = _validate_non_empty_rectangular_matrix(B, "B")
+    
+    if m != b_rows or n != b_cols:
+        raise ValueError("Matrices A and B must have the same dimensions for subtraction")
+    
+    C = [[0 for _ in range(n)] for _ in range(m)]
+    for i in range(m):
+        for j in range(n):
+            C[i][j] = A[i][j] - B[i][j]
+    return C
+
 # return C = A * B
 def matrix_multiply(A, B):
     m, n = _validate_non_empty_rectangular_matrix(A, "A")
@@ -55,6 +83,15 @@ def matrix_multiply(A, B):
                 C[i][j] += A[i][k] * B[k][j]
     return C
 
+# return C = A * scalar
+def scalar_multiply_matrix(A, scalar):
+    m, n = _validate_non_empty_rectangular_matrix(A, "A")
+    C = [[0 for _ in range(n)] for _ in range(m)]
+    for i in range(m):
+        for j in range(n):
+            C[i][j] = A[i][j] * scalar
+    return C
+
 # return Identity matrix of size n
 def identity_matrix(n):
     if n < 0:
@@ -68,7 +105,7 @@ def identity_matrix(n):
 # return normalized vector
 def normalize(vector):
     norm = math.sqrt(sum(x ** 2 for x in vector))
-    if norm < 1e-10:
+    if norm < 1e-32:
         raise ValueError("Cannot normalize a zero vector")
     return [x / norm for x in vector]
 
