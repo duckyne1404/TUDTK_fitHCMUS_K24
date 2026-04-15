@@ -6,7 +6,6 @@
 
 ## 👤 Thông tin sinh viên
 * **Họ và tên:** Phí Hoàng Đức
-* **MSSV:** 24120248
 * **Đơn vị:** Khoa Công nghệ Thông tin - HCMUS
 
 ---
