@@ -331,68 +331,63 @@ def diagonalize(A, eigenvalue_method='qr_shift', eigenvector_method='inverse_ite
                               eigenvector_method='power_method')
     """
     n = len(A)
-    
-    # Compute eigenvalues using selected method
-    
-    if eigenvalue_method == 'qr_shift':
-        eigenvalues, _ = eig_qrshift(A)
-    elif eigenvalue_method == 'qr':
-        eigenvalues, _ = eig_qr(A)
-    elif eigenvalue_method == 'power_method':
-        # Power iteration + deflation approach
-        eigenvalues = []
+
+    # Keep eigenvalue/eigenvector pairing consistent for every method combination.
+    if eigenvalue_method == 'power_method' and eigenvector_method == 'power_method':
+        eigenpairs = []
         A_work = [row[:] for row in A]
         for _ in range(n):
             lam, v = power_iteration(A_work)
-            eigenvalues.append(lam)
+            eigenpairs.append((lam, normalize(v)))
             A_work = deflation(A_work, lam, v)
+        eigenpairs.sort(key=lambda pair: pair[0], reverse=True)
+        eigenvalues = [pair[0] for pair in eigenpairs]
+        vectors = [pair[1] for pair in eigenpairs]
     else:
-        raise ValueError(
-            f"Unknown eigenvalue_method: {eigenvalue_method}. "
-            "Choose from: 'qr_shift', 'qr', 'power_method'"
-        )
-    
-    # Sort eigenvalues in descending order
-    eigenvalues = sorted(eigenvalues, reverse=True)
-    
-    # Compute eigenvectors using selected method
-    
-    vectors = []
-    
-    if eigenvector_method == 'inverse_iteration':
-        for i, lam in enumerate(eigenvalues):
-            try:
-                vectors.append(_inverse_iteration(A, lam, seed_index=i))
-            except ValueError:
+        if eigenvalue_method == 'qr_shift':
+            eigenvalues, _ = eig_qrshift(A)
+        elif eigenvalue_method == 'qr':
+            eigenvalues, _ = eig_qr(A)
+        elif eigenvalue_method == 'power_method':
+            eigenvalues = []
+            A_work = [row[:] for row in A]
+            for _ in range(n):
+                lam, v = power_iteration(A_work)
+                eigenvalues.append(lam)
+                A_work = deflation(A_work, lam, v)
+        else:
+            raise ValueError(
+                f"Unknown eigenvalue_method: {eigenvalue_method}. "
+                "Choose from: 'qr_shift', 'qr', 'power_method'"
+            )
+
+        eigenvalues = sorted(eigenvalues, reverse=True)
+        vectors = []
+
+        if eigenvector_method == 'inverse_iteration':
+            for i, lam in enumerate(eigenvalues):
+                try:
+                    vectors.append(_inverse_iteration(A, lam, seed_index=i))
+                except ValueError:
+                    vectors.append(eigenvector_from_lambda(A, lam))
+        elif eigenvector_method == 'eigenvector_from_lambda':
+            for lam in eigenvalues:
                 vectors.append(eigenvector_from_lambda(A, lam))
-    
-    elif eigenvector_method == 'power_method':
-        eigenvalues_power = []
-        A_work = [row[:] for row in A]
-        for i in range(n):
-            lam, v = power_iteration(A_work)
-            eigenvalues_power.append(lam)
-            vectors.append(v)
-            A_work = deflation(A_work, lam, v)
-    
-    elif eigenvector_method == 'eigenvector_from_lambda':
-        for i, lam in enumerate(eigenvalues):
-            vectors.append(eigenvector_from_lambda(A, lam))
-    
-    else:
-        raise ValueError(
-            f"Unknown eigenvector_method: {eigenvector_method}. "
-            "Choose from: 'inverse_iteration', 'power_method', 'eigenvector_from_lambda'"
-        )
-    
+        elif eigenvector_method == 'power_method':
+            raise ValueError(
+                "eigenvector_method='power_method' requires "
+                "eigenvalue_method='power_method' to preserve eigenpair consistency"
+            )
+        else:
+            raise ValueError(
+                f"Unknown eigenvector_method: {eigenvector_method}. "
+                "Choose from: 'inverse_iteration', 'power_method', 'eigenvector_from_lambda'"
+            )
+
     # Form P and D matrices
-    
-    # P: columns are eigenvectors
     P = transpose(vectors)
-    
-    # D: diagonal matrix with eigenvalues
     D = [[0.0 for _ in range(n)] for _ in range(n)]
     for i in range(n):
         D[i][i] = eigenvalues[i]
-    
+
     return P, D

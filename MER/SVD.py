@@ -77,6 +77,32 @@ def _complete_orthonormal_basis(existing_cols, dim):
     return basis
 
 
+def _extend_basis_preserving(existing_cols, dim):
+    """
+    Extend an already orthonormal basis without modifying existing vectors.
+
+    Args:
+        existing_cols: orthonormal vectors to keep fixed
+        dim: target basis size
+
+    Returns: list of orthonormal vectors (length dim)
+    """
+    basis = [v[:] for v in existing_cols]
+
+    for idx in range(dim):
+        if len(basis) == dim:
+            break
+        e = [0.0 for _ in range(dim)]
+        e[idx] = 1.0
+        w = e[:]
+        for u in basis:
+            w = [w[i] - project(w, u)[i] for i in range(dim)]
+        if sum(x * x for x in w) > EPSILON:
+            basis.append(normalize(w))
+
+    return basis
+
+
 def svd_decomposition(
     A,
     eigenvalue_method='qr_shift',
@@ -145,24 +171,39 @@ def svd_decomposition(
     for i in range(min(m, n)):
         Sigma[i][i] = singular_values[i]
 
-    # Compute U columns: u_i = (1/sigma_i) * A * v_i
     V_cols = transpose(V)
 
-    u_cols = []
-    for i in range(len(singular_values)):
+    # Use the leading right-singular directions directly from diagonalization
+    # to preserve sigma_i <-> v_i pairing before basis completion.
+    r = min(m, n)
+    paired_v_cols = []
+    for i in range(r):
         sigma = singular_values[i]
-        if sigma > EPSILON:
-            v_i = V_cols[i]
-            Av = _mat_vec_mul(A, v_i)
-            u_i = [x / sigma for x in Av]
+        if sigma <= EPSILON:
+            break
+        w = V_cols[i][:]
+        for u in paired_v_cols:
+            w = [w[k] - project(w, u)[k] for k in range(n)]
+        if sum(x * x for x in w) > EPSILON:
+            paired_v_cols.append(normalize(w))
+
+    full_v_cols = _extend_basis_preserving(paired_v_cols, n)
+    V = transpose(full_v_cols)
+
+    # Compute U columns: u_i = (1/sigma_i) * A * v_i
+    u_cols = []
+    for i in range(len(paired_v_cols)):
+        sigma = singular_values[i]
+        v_i = paired_v_cols[i]
+        Av = _mat_vec_mul(A, v_i)
+        u_i = [x / sigma for x in Av]
+        for u_prev in u_cols:
+            u_i = [u_i[k] - project(u_i, u_prev)[k] for k in range(m)]
+        if sum(x * x for x in u_i) > EPSILON:
             u_cols.append(normalize(u_i))
 
-    # Complete U basis if m > n
-    full_u_cols = _complete_orthonormal_basis(u_cols, m)
+    # Complete U basis if needed without changing paired leading vectors.
+    full_u_cols = _extend_basis_preserving(u_cols, m)
     U = transpose(full_u_cols)
-
-    # Complete V basis
-    full_v_cols = _complete_orthonormal_basis(V_cols, n)
-    V = transpose(full_v_cols)
 
     return U, Sigma, V

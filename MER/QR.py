@@ -64,11 +64,31 @@ def gram_schmidt(A):
         w = v[:]
 
         for qi in basis:
-            coeff = _dot(v, qi)
+            coeff = _dot(w, qi)
             for k in range(len(w)):
                 w[k] -= coeff * qi[k]
 
-        basis.append(normalize(w))
+        if _dot(w, w) < EPSILON:
+            # If the current column is nearly dependent, choose the next
+            # orthogonal direction from the standard basis.
+            replacement = None
+            for idx in range(len(w)):
+                e = [0.0 for _ in range(len(w))]
+                e[idx] = 1.0
+                candidate = e[:]
+                for qi in basis:
+                    coeff = _dot(candidate, qi)
+                    for k in range(len(candidate)):
+                        candidate[k] -= coeff * qi[k]
+                if _dot(candidate, candidate) > EPSILON:
+                    replacement = normalize(candidate)
+                    break
+
+            if replacement is None:
+                raise ValueError("Failed to construct orthonormal basis in Gram-Schmidt")
+            basis.append(replacement)
+        else:
+            basis.append(normalize(w))
 
     return transpose(basis)
 
