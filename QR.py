@@ -1,23 +1,61 @@
-from utils import identity_matrix, normalize, matrix_add, matrix_subtract, matrix_multiply, scalar_multiply_matrix, transpose
+"""
+QR Decomposition and Eigenvalue Finding Algorithms.
+
+This module provides QR factorization and two methods for computing eigenvalues:
+- eig_qr: Standard QR algorithm
+- eig_qrshift: QR algorithm with Rayleigh quotient shift (faster convergence)
+"""
+
+from utils import (
+    identity_matrix, normalize, matrix_add, matrix_subtract,
+    matrix_multiply, scalar_multiply_matrix, transpose
+)
+
+EPSILON = 1e-10
 
 def _dot(u, v):
+    """
+    Compute dot product of two vectors.
+    
+    Args:
+        u: (n,) vector
+        v: (n,) vector
+    
+    Returns: u . v = sum(u[i] * v[i])
+    """
     return sum(u[i] * v[i] for i in range(len(u)))
 
 
 def project(u, v):
-    # project u onto v
-    # return (u . v) / (v . v) * v
+    """
+    Project vector u onto vector v.
+    
+    Args:
+        u: (n,) vector
+        v: (n,) vector
+    
+    Formula: proj_v(u) = (u . v) / (v . v) * v
+    
+    Returns: Scalar projection of u onto v
+    """
     dot_uv = _dot(u, v)
     dot_vv = _dot(v, v)
-    if abs(dot_vv) < 1e-10:
+    if abs(dot_vv) < EPSILON:
         raise ValueError("Cannot project onto the zero vector")
     scalar = dot_uv / dot_vv
     return [scalar * v[i] for i in range(len(v))]
 
 def gram_schmidt(A):
-    # A: m x n matrix stored row-major, where each row is one vector in R^n
-    # A_T = transpose(A): n x m matrix, so each row of A_T is one original column vector of A
-    # basis: orthonormal vectors obtained from Gram-Schmidt
+    """
+    Orthonormalize columns of a matrix using Gram-Schmidt process.
+    
+    Args:
+        A: an n x n matrix (square)
+           Each row of A is a vector in R^n
+           We orthonormalize its columns
+    
+    Returns: Q (n x n matrix where columns are orthonormal vectors)
+    """
     A_T = transpose(A)
     basis = []
 
@@ -26,18 +64,49 @@ def gram_schmidt(A):
         w = v[:]
 
         for qi in basis:
-            coeff = _dot(v, qi)
+            coeff = _dot(w, qi)
             for k in range(len(w)):
                 w[k] -= coeff * qi[k]
 
-        basis.append(normalize(w))
+        if _dot(w, w) < EPSILON:
+            # If the current column is nearly dependent, choose the next
+            # orthogonal direction from the standard basis.
+            replacement = None
+            for idx in range(len(w)):
+                e = [0.0 for _ in range(len(w))]
+                e[idx] = 1.0
+                candidate = e[:]
+                for qi in basis:
+                    coeff = _dot(candidate, qi)
+                    for k in range(len(candidate)):
+                        candidate[k] -= coeff * qi[k]
+                if _dot(candidate, candidate) > EPSILON:
+                    replacement = normalize(candidate)
+                    break
+
+            if replacement is None:
+                raise ValueError("Failed to construct orthonormal basis in Gram-Schmidt")
+            basis.append(replacement)
+        else:
+            basis.append(normalize(w))
 
     return transpose(basis)
 
+
 def qr_decomposition(A):
-    # A: n x n matrix stored (ma trận hàng)
-    # Q: n x n matrix whose columns are orthonormal vectors
-    # R: n x n upper-triangular matrix such that A = Q * R
+    """
+    Decompose matrix A into Q * R form.
+    
+    Args:
+        A: an n x n matrix (square)
+
+    Returns: Q (orthonormal columns), R (upper triangular)
+             Such that A = Q * R
+    
+    Algorithm:
+        1. Compute orthonormal basis Q using Gram-Schmidt
+        2. Compute R = Q^T * A (upper triangular)
+    """
     n = len(A)
     Q = gram_schmidt(A)
     A_T = transpose(A)
@@ -52,35 +121,44 @@ def qr_decomposition(A):
 
     return Q, R
 
-# A = Q * R -> return B = R * Q
+
 def makesimilar(A):
-    # A_0 = Q_0 * R_0
-    # A_1 = R_0 * Q_0
-    # A_1 = Q_1 * R_1
-    # A_2 = R_1 * Q_1
-    # ...
-    # A_k = R_{k-1} * Q_{k-1}
-    # A_k = Q_k * R_k
-    # Eventually A_k will converge to an upper triangular matrix with the eigenvalues of A on the diagonal.
-    # A: n x n matrix stored (ma trận hàng)
-    # Q: n x n orthonormal-column matrix
-    # R: n x n upper-triangular matrix
-    # B: n x n similar matrix, B = R * Q
+    """
+    Perform one QR iteration: A_new = R * Q where A = Q * R.
+    Args:
+        A: n x n matrix
+        
+    Returns: B = R * Q
+    """
     Q, R = qr_decomposition(A)
     B = matrix_multiply(R, Q)
     return B
 
-# return (eigenvalues, iters) where eigeinvalues is a list of the eigenvalues of A and iters is the number of iterations until convergence
-# time complexity: kinda slow (calculate precise later)
-def eig_qr(A):
-    # A: n x n matrix stored row-major
-    # B: n x n iterated similar matrix
+def eig_qr(A, max_iters=2000):
+    """
+    Compute eigenvalues of A using standard QR algorithm (no shift).
+
+    Args:
+        A: n x n symmetric matrix
+        max_iters: maximum number of iterations
+    
+    Returns: (eigenvalues, iterations_taken)
+             eigenvalues: list of n eigenvalues
+             iterations_taken: number of QR iterations until convergence
+
+    Algorithm:
+        A_0 = Q_0 * R_0
+        A_1 = R_0 * Q_0
+        A_k = Q_k * R_k
+        A_{k+1} = R_k * Q_k ...
+        Stops when A_k is sufficiently upper triangular (i.e., bottom-right element converges). The diagonal elements are eigenvalues.
+    """
     B = makesimilar(A)
     iters = 0
     leig = B[-1][-1]
     diff = 1
-    max_iters = 2000
-    while diff > 1e-10 and iters < max_iters:
+    
+    while diff > EPSILON and iters < max_iters:
         B = makesimilar(B)
         iters += 1
         diff = abs(B[-1][-1] - leig)
@@ -88,30 +166,42 @@ def eig_qr(A):
 
     return [B[i][i] for i in range(len(B))], iters
 
-# QR algorithms with Shift
-# A_0 - s*I = Q_0 * R_0
-# A_1 = R_0 * Q_0 + s*I
-# ...
-# A_k - s*I = Q_k * R_k
-# A_{k+1} = R_k * Q_k + s*I
-# s is chosen at every iteration to accelerate convergence, often close to the value of an eigenvalue, usually the bottom-right element of A_k, which is an approximation of an eigenvalue. This helps to speed up convergence, especially for eigenvalues that are close together. The algorithm continues until the off-diagonal elements of A_k are sufficiently small, indicating that A_k has converged to an upper triangular matrix with the eigenvalues on the diagonal.
-def eig_qrshift(A, shindex=-1):
-    # parameter shindex: shift index (choose which diagonal element to use as the shift, default is the bottom-right element) - just for visualization & speed demonstration
-    # A: n x n matrix (ma trận hàng)
-    # B: n x n iterated similar matrix
-    # I: n x n identity matrix
-    # shift: n x n matrix equal to leigh * I
-    # C: n x n shifted matrix, C = B - shift
+
+def eig_qrshift(A, shindex=-1, max_iters=2000):
+    """
+    Compute eigenvalues of A using QR algorithm with shift.
+
+    Args:
+        A: n x n symmetric matrix
+        shindex: which diagonal element to use as shift (default -1 = bottom-right)
+        max_iters: maximum number of iterations
+    
+    Returns: (eigenvalues, iterations_taken)
+             eigenvalues: list of n eigenvalues
+             iterations_taken: number of QR iterations until convergence
+    
+    Algorithm:
+        Choose shift s = A_k[shindex, shindex] at each iteration k
+        C_k = B_k - s*I = Q_k * R_k
+        B_{k+1} = R_k * Q_k + s*I
+        
+        Repeat until convergence.
+        
+        The shift accelerates convergence because during QR iterations,
+        the bottom-right corner tends to converge to the smallest eigenvalue.
+        Shifting by this value essentially removes it, allowing QR to focus
+        on computing other eigenvalues.
+    """
     B = makesimilar(A)
     iters = 0
     leigh = B[shindex][shindex]
     diff = 1
-    max_iters = 2000
-    while diff > 1e-10 and iters < max_iters:
+    
+    while diff > EPSILON and iters < max_iters:
         I = identity_matrix(len(B))
         shift = scalar_multiply_matrix(I, leigh)
-        C = matrix_subtract(B, shift) # B_old - s*I = C = Q * R
-        B = matrix_add(makesimilar(C), shift) # now make B_new = R * Q (makesimilar(C)) + shift
+        C = matrix_subtract(B, shift)  # B_old - s*I = C = Q * R
+        B = matrix_add(makesimilar(C), shift)  # B_new = R * Q + s*I
         iters += 1
         diff = abs(B[shindex][shindex] - leigh)
         leigh = B[shindex][shindex]
